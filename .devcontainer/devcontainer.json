@@ -1,0 +1,40 @@
+{
+  "name": "pregnancy tracker",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts",
+      "pnpm": true
+    }
+  },
+
+  "forwardPorts": [5173],
+
+  "extraHosts": ["host.docker.internal:host-gateway"],
+
+  "containerEnv": {
+    "OLLAMA_HOST": "http://host.docker.internal:11434",
+    "UV_PROJECT_ENVIRONMENT": "/home/vscode/venvs/python"
+  },
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/home/vscode/venvs/python/bin/python",
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+
+  "postCreateCommand": "uv sync",
+  "remoteUser": "vscode"
+}
