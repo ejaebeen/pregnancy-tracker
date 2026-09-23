@@ -54,7 +54,7 @@ uv venv && uv pip install -r requirements.txt
 Set the environment (or put it in `backend/.env` via a dotenv loader):
 
 ```bash
-export DATABASE_URL="postgresql+psycopg2://tracker:tracker@localhost:5432/pregnancy_tracker"
+export DATABASE_URL="postgresql+psycopg://tracker:tracker@localhost:5432/pregnancy_tracker"
 ```
 
 Run in dev mode:
@@ -104,7 +104,7 @@ services:
     build: ./backend
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg2://tracker:tracker@db:5432/pregnancy_tracker
+      DATABASE_URL: postgresql+psycopg://tracker:tracker@db:5432/pregnancy_tracker
     ports: ["8000:8000"]
     depends_on: [db]
 
