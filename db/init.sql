@@ -1,0 +1,13 @@
+-- db/init.sql — runs once, only on first volume init (see docs/database.md).
+-- Tables (diary_entries, doctor_questions) are created by the backend on
+-- startup via Base.metadata.create_all, so this script is intentionally
+-- empty of DDL.
+--
+-- Optional sample seed data — only valid once the backend has created the
+-- tables (i.e. on a re-run against an existing volume, NOT on first init):
+--
+-- INSERT INTO diary_entries (id, text) VALUES
+--   ('00000000-0000-4000-8000-000000000001', 'Moved everything into the new architecture.');
+--
+-- INSERT INTO doctor_questions (id, text, is_answered) VALUES
+--   ('00000000-0000-4000-8000-000000000002', 'Should I increase my iron intake?', false);

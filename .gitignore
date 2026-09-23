@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Environment files (keep .env.example, never .env)
+.env
