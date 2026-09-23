@@ -3,19 +3,19 @@ name: notion-task-workflow
 description: >-
   Manages development work in a Jira-ticket style using Notion MCP. Use this skill when
   the user wants to plan tasks into a Notion Task Tracker database, implement work
-  item-by-item on dedicated git branches, create commits, push branches, and open
-  Pull Requests for user review and merging.
+  item-by-item on dedicated git branches, create commits, push branches to remote GitHub repo,
+  open Pull Requests with full descriptions for user code review, and handle merge gates.
 ---
 
 # Notion Jira-Style Task Tracker Workflow
 
-This skill guides the agent through an agile, ticket-driven development lifecycle where a Notion database serves as the Jira board / task tracker.
+This skill guides the agent through an agile, ticket-driven development lifecycle where a Notion database serves as the Jira board / task tracker and GitHub Pull Requests serve as the primary medium of code review.
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│ 1. Plan &    │ ──▶ │ 2. Build     │ ──▶ │ 3. Push &    │ ──▶ │ 4. Review &  │
-│ Add to Notion│     │ Item-by-Item │     │ Open PR      │     │ Merge Gate   │
-└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+┌──────────────┐     ┌──────────────┐     ┌────────────────┐     ┌──────────────┐
+│ 1. Plan &    │ ──▶ │ 2. Build     │ ──▶ │ 3. Push Branch │ ──▶ │ 4. PR Review │
+│ Add to Notion│     │ Item-by-Item │     │ & Open PR (gh) │     │ Gate & Merge │
+└──────────────┘     └──────────────┘     └────────────────┘     └──────────────┘
 ```
 
 ---
@@ -24,9 +24,10 @@ This skill guides the agent through an agile, ticket-driven development lifecycl
 
 1. **Notion MCP Server**: Connected via `composio`.
 2. **Python Virtual Environment**: Located at `/home/vscode/venvs/python`. Activate via `source /home/vscode/venvs/python/bin/activate` for backend tasks, testing, and linting.
-3. **Git & GitHub Workflow**:
-   - **Current State: Local Mode** (Git remote / `gh` CLI not yet configured). Development happens on local git branches with local verification and manual review/merge to `main`.
-   - **Remote Mode (Future)**: Once the user configures the git remote and `gh` auth, the agent pushes branches to remote and opens Pull Requests.
+3. **Git & GitHub Remote Workflow**:
+   - **GitHub CLI (`gh`)**: Installed in the devcontainer. Authentication is verified via `gh auth status`. If not yet logged in, authenticate via `gh auth login` or export `GITHUB_TOKEN`.
+   - **Git Remote**: `origin` is configured to `https://github.com/ejaebeen/pregnancy-tracker.git`.
+   - **GitHub PR as Primary Review**: Code review is conducted on GitHub via Pull Requests. Do NOT just mark the ticket `In Review` in Notion and drop a message in chat asking to review locally. The agent must push the branch to the remote GitHub repo, create a PR with full descriptions, link the PR in Notion, and provide the PR link to the user for review.
 
 ## ⭐ Pinned Task Tracker Database
 
@@ -47,12 +48,12 @@ This skill guides the agent through an agile, ticket-driven development lifecycl
 | `Component` | `select` | `Backend`, `Frontend`, `Database`, `DevOps/Docs` |
 | `Effort level` | `select` | `Small`, `Medium`, `Large` |
 | `Branch` | `rich_text` | git branch name, e.g. `feat/task-01-scaffold-backend` |
-| `PR Link` | `url` | optional PR URL (populated once git remote is configured) |
+| `PR Link` | `url` | GitHub PR URL created via `gh pr create` (e.g. `https://github.com/ejaebeen/pregnancy-tracker/pull/1`) |
 | `Description` | `rich_text` | scope and acceptance criteria |
 | `Due date` | `date` | ISO date |
 | `Assignee` | `people` | user ID |
 
-> Note: Transition `Status` to `In Review` when code implementation and verification are complete. In Local Mode, record the branch name in `Branch`. Once remote is configured, also populate `PR Link`.
+> Note: Transition `Status` to `In Review` when code implementation and verification are complete. Always push the branch to remote, open a Pull Request, record the branch name in `Branch`, and populate `PR Link` with the PR URL.
 
 
 ---
@@ -122,10 +123,10 @@ Execute **one ticket at a time**. Never bundle multiple tickets into a single br
    - Record the row's `page_id` — it is needed for every subsequent status update.
 
 2. **Create a Dedicated Branch**:
-   - Ensure the working tree is clean and branched from `main`:
+   - Ensure the working tree is clean and branched from up-to-date `main`:
      ```bash
      git checkout main
-     # If remote is configured: git pull origin main
+     git pull origin main
      git checkout -b feat/task-<id>-<short-description>
      ```
 
@@ -144,7 +145,11 @@ Execute **one ticket at a time**. Never bundle multiple tickets into a single br
 
 ---
 
-## Phase 3: Commit & Review Handoff
+## Phase 3: Push, Create PR & Review Handoff
+
+> [!IMPORTANT]
+> **GitHub PR as Primary Review**:
+> Code review is conducted on GitHub via Pull Requests. Do NOT just mark the ticket `In Review` in Notion or drop a message in chat asking to review locally. The agent must push the branch to the remote GitHub repo, open a PR with complete descriptions, link the PR in Notion, and provide the PR link to the user for review.
 
 1. **Craft Semantic Commits**:
    - Stage files explicitly and commit locally:
@@ -153,64 +158,62 @@ Execute **one ticket at a time**. Never bundle multiple tickets into a single br
      git commit -m "feat(<scope>): <clear description> (refs TASK-<id>)"
      ```
 
-2. **Handoff for Review (Local Mode vs. Remote Mode)**:
-
-   ### Mode A: Local Mode (Default / Current)
-   *Git remote / `gh` CLI is not configured yet. Everything stays local.*
-   - **Update Notion Ticket**:
-     ```json
-     {
-       "row_id": "<row page UUID>",
-       "properties": [
-         { "name": "Status", "type": "status", "value": "In Review" },
-         { "name": "Branch", "type": "rich_text", "value": "feat/task-<id>-<short-description>" }
-       ]
-     }
-     ```
-   - **Report to User**:
-     - Present the summary of changes and `git diff --stat`.
-     - Confirm all acceptance criteria are verified.
-     - Provide the exact command for the user to review/run locally (e.g. `uvicorn src.main:app --reload` or `npm run dev`).
-     - Request user verification.
-
-   ### Mode B: Remote PR Mode (When Git Remote is Configured)
-   *Once git remote and `gh` auth are set up:*
-   - Push branch to remote:
+2. **Push Branch to Remote GitHub Repo**:
+   - Always push the dedicated feature branch to origin:
      ```bash
      git push -u origin feat/task-<id>-<short-description>
      ```
-   - Open Pull Request via `gh`:
+
+3. **Open Pull Request via `gh` CLI with Comprehensive Description**:
+   - Create the PR using `gh pr create` with rich markdown formatting covering the Notion ticket link, summary of changes, verified acceptance criteria, and testing results:
      ```bash
      gh pr create \
-       --title "feat: <title> [TASK-<id>]" \
+       --title "feat: <task title> [TASK-<id>]" \
        --body "$(cat <<'EOF'
-     ## Notion Task
-     - Task: [TASK-<id>] <Task Title>
+     ## 📌 Notion Task
+     - **Task**: [TASK-<id>] <Task Title>
+     - **Notion Tracker**: [Tasks Tracker Database](https://app.notion.com/p/3e3a1240592a808ca519edb2b8653785)
 
-     ## Summary of Changes
-     - Detailed bullet 1
-     - Detailed bullet 2
+     ## 📝 Summary of Changes
+     - Detailed explanation of what was implemented
+     - Key architectural decisions, file changes, and component interactions
 
-     ## Acceptance Criteria Verification
+     ## ✅ Acceptance Criteria Checklist
      - [x] Verified criterion 1
      - [x] Verified criterion 2
 
-     ## Testing & Verification
-     - [x] Checks passed
+     ## 🧪 Testing & Verification Performed
+     - **Backend / API**: e.g., verified with curl / pytest (0 errors)
+     - **Frontend**: `npm run lint` and `npm run build` passed with 0 errors
+     - **UX States**: Verified Loading, Empty, Submitting, and Error states
+
+     ## 🔍 Review Request
+     Please review the code diff and implementation details in this Pull Request. Once approved, this PR will be merged into `main`.
      EOF
      )"
      ```
-   - **Update Notion Ticket**:
+   - Capture the created PR URL from the command output (e.g. `https://github.com/ejaebeen/pregnancy-tracker/pull/X`).
+
+4. **Update Notion Ticket**:
+   - Transition `Status` to `In Review` and record both `Branch` and `PR Link`:
      ```json
      {
        "row_id": "<row page UUID>",
        "properties": [
          { "name": "Status", "type": "status", "value": "In Review" },
          { "name": "Branch", "type": "rich_text", "value": "feat/task-<id>-<short-description>" },
-         { "name": "PR Link", "type": "url", "value": "https://github.com/owner/repo/pull/12" }
+         { "name": "PR Link", "type": "url", "value": "<PR URL>" }
        ]
      }
      ```
+
+5. **Handoff for Review in Chat**:
+   - Present the PR as the primary review medium to the user:
+     - 🔗 **GitHub Pull Request**: [PR #X: <task title>](<PR URL>)
+     - 📋 **Notion Ticket**: [TASK-<id>] <Task Title>
+     - Summary of changes implemented and verified
+     - Clear call-to-action directing the user to review the PR on GitHub:
+       > *"I have pushed branch `feat/task-<id>-<short-description>` and opened Pull Request #X for your review: <PR URL>. Please review the code diff on GitHub. Once approved, I will merge the PR and update the Notion ticket to Done."*
 
 ---
 
@@ -218,26 +221,26 @@ Execute **one ticket at a time**. Never bundle multiple tickets into a single br
 
 > [!IMPORTANT]
 > **Do NOT merge automatically without user approval.**
-> The user is the reviewer. Stop execution after moving the ticket to `In Review` and presenting the handoff.
+> The user reviews the Pull Request on GitHub. Stop execution after pushing the branch, creating the PR, updating Notion to `In Review`, and providing the review links in chat.
 
 1. **If Changes Requested by User**:
-   - Set Notion ticket `Status` to `In progress`.
-   - Checkout the task branch if not already on it (`git checkout feat/task-<id>-<short-description>`).
-   - Implement requested revisions and re-run verification checks.
+   - The user may leave comments on the GitHub PR or in chat.
+   - Transition Notion ticket `Status` to `In progress`.
+   - Checkout the task branch: `git checkout feat/task-<id>-<short-description>`.
+   - Implement the requested revisions and re-run verification checks.
    - Commit additions: `git commit -m "fix(<scope>): address review feedback (refs TASK-<id>)"`.
-   - If in Remote Mode, push to remote (`git push origin feat/...`).
-   - Set Notion ticket `Status` back to `In Review` and notify user.
+   - Push updates to remote: `git push origin feat/task-<id>-<short-description>`.
+     *(This automatically updates the open Pull Request on GitHub with the new commits.)*
+   - Transition Notion ticket `Status` back to `In Review` and notify the user on the PR/chat that the PR is updated for re-review.
 
-2. **On User Approval**:
-   - **In Local Mode**:
-     - Merge local feature branch into `main`:
-       ```bash
-       git checkout main
-       git merge --no-ff feat/task-<id>-<short-description> -m "feat(<scope>): merge task-<id> into main"
-       ```
-   - **In Remote Mode**:
-     - User merges the PR on GitHub.
-     - Checkout `main` and pull updates: `git checkout main && git pull origin main`.
+2. **On User Approval & Merge**:
+   - Once the user approves the PR:
+     - The PR is merged on GitHub (either by the user clicking Merge on GitHub, or by running `gh pr merge --squash --delete-branch` upon user confirmation).
+   - Sync local `main`:
+     ```bash
+     git checkout main
+     git pull origin main
+     ```
    - **Update Notion Ticket to Done**:
      - Transition via `NOTION_UPDATE_ROW_DATABASE`:
        ```json

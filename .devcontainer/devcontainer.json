@@ -8,8 +8,14 @@
     "ghcr.io/devcontainers/features/node:1": {
       "version": "lts",
       "pnpm": true
-    }
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
+
+  "mounts": [
+    "source=antigravity-sessions,target=/home/vscode/.gemini,type=volume",
+    "source=opencode-sessions,target=/home/vscode/.local/share/opencode,type=volume"
+  ],
 
   "forwardPorts": [5173],
 
