@@ -3,20 +3,22 @@ name: notion-task-workflow
 description: >-
   Manages development work in a Jira-ticket style using Notion MCP. Use this skill when
   the user wants to plan tasks into a Notion Task Tracker database, implement work
-  item-by-item on dedicated git branches, create commits, push branches to remote GitHub repo,
-  open Pull Requests with full descriptions for user code review, and handle merge gates.
+  across dedicated git branches, create commits, push branches to remote GitHub repo,
+  open Pull Requests with full descriptions in a continuous batch loop without stopping,
+  and present all PRs for review in one go.
 ---
 
 # Notion Jira-Style Task Tracker Workflow
 
-This skill guides the agent through an agile, ticket-driven development lifecycle where a Notion database serves as the Jira board / task tracker and GitHub Pull Requests serve as the primary medium of code review.
+This skill guides the agent through an agile, ticket-driven development lifecycle where a Notion database serves as the Jira board / task tracker and GitHub Pull Requests serve as the primary medium of code review. Work is executed in an autonomous batch loop, creating multiple PRs across dedicated branches in one go before handoff.
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌────────────────┐     ┌──────────────┐
-│ 1. Plan &    │ ──▶ │ 2. Build     │ ──▶ │ 3. Push Branch │ ──▶ │ 4. PR Review │
-│ Add to Notion│     │ Item-by-Item │     │ & Open PR (gh) │     │ Gate & Merge │
-└──────────────┘     └──────────────┘     └────────────────┘     └──────────────┘
+┌──────────────┐     ┌────────────────────────────────────────────────────────┐     ┌──────────────┐
+│ 1. Plan &    │ ──▶ │ 2. Autonomous Batch Builder Loop                       │ ──▶ │ 3. Batch PR  │
+│ Add to Notion│     │    [Pick -> Branch -> Build -> Push -> PR -> Notion] ↺ │     │    Handoff   │
+└──────────────┘     └────────────────────────────────────────────────────────┘     └──────────────┘
 ```
+
 
 ---
 
@@ -103,9 +105,29 @@ When the user asks to implement a feature, milestone, or roadmap phase:
 
 ---
 
-## Phase 2: Building Item-by-Item (Builder Role)
+## Phase 2: Autonomous Batch Builder Loop (Builder Role)
 
-Execute **one ticket at a time**. Never bundle multiple tickets into a single branch.
+Execute through all planned or queued `Not started` tickets **in a continuous autonomous loop**. Do NOT stop execution or wait for user approval between tickets. Create all Pull Requests in one go.
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        BATCH EXECUTION LOOP                            │
+│                                                                        │
+│   ┌───────────────┐     ┌───────────────┐     ┌────────────────────┐   │
+│   │ 1. Pick next  │ ──▶ │ 2. Determine  │ ──▶ │ 3. Implement &     │   │
+│   │    ticket     │     │    base branch│     │    verify locally  │   │
+│   └───────────────┘     └───────────────┘     └────────────────────┘   │
+│           ▲                                              │             │
+│           │                                              ▼             │
+│   ┌───────────────┐     ┌───────────────┐     ┌────────────────────┐   │
+│   │ 6. Next ticket│ ◀── │ 5. gh pr      │ ◀── │ 4. git push origin │   │
+│   │    (DO NOT    │     │    create &   │     │    feat/branch     │   │
+│   │     STOP)     │     │    Notion sync│     │                    │   │
+│   └───────────────┘     └───────────────┘     └────────────────────┘   │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+For **EACH** ticket in the batch:
 
 1. **Pick the Active Item**:
    - Fetch the next `Not started` task from the pinned Tasks Tracker database via `NOTION_QUERY_DATABASE` (respecting dependencies).
@@ -122,13 +144,21 @@ Execute **one ticket at a time**. Never bundle multiple tickets into a single br
      ```
    - Record the row's `page_id` — it is needed for every subsequent status update.
 
-2. **Create a Dedicated Branch**:
-   - Ensure the working tree is clean and branched from up-to-date `main`:
-     ```bash
-     git checkout main
-     git pull origin main
-     git checkout -b feat/task-<id>-<short-description>
-     ```
+2. **Determine Base Branch & Create Dedicated Feature Branch**:
+   - Analyze dependencies between this task and preceding tasks in the batch:
+     - **Case A: Independent Task** (does not depend on unmerged code from earlier tasks):
+       Branch directly from `main`:
+       ```bash
+       git checkout main
+       git pull origin main
+       git checkout -b feat/task-<id>-<short-description>
+       ```
+     - **Case B: Dependent / Sequential Task (Stacked Branch)** (builds on code from a prior unmerged task `feat/task-<prev_id>-...`):
+       Branch from the prior task's feature branch:
+       ```bash
+       git checkout feat/task-<prev_id>-<short-description>
+       git checkout -b feat/task-<id>-<short-description>
+       ```
 
 3. **Implement the Specific Ticket**:
    - Modify only the files directly required by the acceptance criteria for this item.
@@ -143,28 +173,20 @@ Execute **one ticket at a time**. Never bundle multiple tickets into a single br
      - Run type checks / build: `npm run build` or `tsc -b`
    - Only proceed once all checks pass with 0 errors.
 
----
-
-## Phase 3: Push, Create PR & Review Handoff
-
-> [!IMPORTANT]
-> **GitHub PR as Primary Review**:
-> Code review is conducted on GitHub via Pull Requests. Do NOT just mark the ticket `In Review` in Notion or drop a message in chat asking to review locally. The agent must push the branch to the remote GitHub repo, open a PR with complete descriptions, link the PR in Notion, and provide the PR link to the user for review.
-
-1. **Craft Semantic Commits**:
+5. **Commit and Push Branch to Remote GitHub Repo**:
    - Stage files explicitly and commit locally:
      ```bash
      git add <modified-files>
      git commit -m "feat(<scope>): <clear description> (refs TASK-<id>)"
      ```
-
-2. **Push Branch to Remote GitHub Repo**:
-   - Always push the dedicated feature branch to origin:
+   - Push the feature branch to origin:
      ```bash
      git push -u origin feat/task-<id>-<short-description>
      ```
 
-3. **Open Pull Request via `gh` CLI with Comprehensive Description**:
+6. **Open Pull Request via `gh` CLI with Comprehensive Description**:
+   - For independent tasks (Case A), target base is `main` (default).
+   - For stacked / dependent tasks (Case B), specify `--base feat/task-<prev_id>-<short-description>` or clearly note the dependency in the PR body.
    - Create the PR using `gh pr create` with rich markdown formatting covering the Notion ticket link, summary of changes, verified acceptance criteria, and testing results:
      ```bash
      gh pr create \
@@ -188,13 +210,13 @@ Execute **one ticket at a time**. Never bundle multiple tickets into a single br
      - **UX States**: Verified Loading, Empty, Submitting, and Error states
 
      ## 🔍 Review Request
-     Please review the code diff and implementation details in this Pull Request. Once approved, this PR will be merged into `main`.
+     Please review the code diff and implementation details in this Pull Request.
      EOF
      )"
      ```
    - Capture the created PR URL from the command output (e.g. `https://github.com/ejaebeen/pregnancy-tracker/pull/X`).
 
-4. **Update Notion Ticket**:
+7. **Update Notion Ticket**:
    - Transition `Status` to `In Review` and record both `Branch` and `PR Link`:
      ```json
      {
@@ -207,21 +229,37 @@ Execute **one ticket at a time**. Never bundle multiple tickets into a single br
      }
      ```
 
-5. **Handoff for Review in Chat**:
-   - Present the PR as the primary review medium to the user:
-     - 🔗 **GitHub Pull Request**: [PR #X: <task title>](<PR URL>)
-     - 📋 **Notion Ticket**: [TASK-<id>] <Task Title>
-     - Summary of changes implemented and verified
-     - Clear call-to-action directing the user to review the PR on GitHub:
-       > *"I have pushed branch `feat/task-<id>-<short-description>` and opened Pull Request #X for your review: <PR URL>. Please review the code diff on GitHub. Once approved, I will merge the PR and update the Notion ticket to Done."*
+8. **DO NOT STOP — Loop Immediately to the Next Ticket**:
+   - Retain the created PR URL, branch name, and ticket ID in execution context.
+   - **Immediately proceed to step 1 for the next `Not started` task.**
+   - Do NOT stop to wait for user code review or merging between tasks. Continue until all tasks in the queue are completed.
 
 ---
 
-## Phase 4: Review Gate & Iteration (Wait for User)
+## Phase 3: Final Batch PR Handoff
 
-> [!IMPORTANT]
-> **Do NOT merge automatically without user approval.**
-> The user reviews the Pull Request on GitHub. Stop execution after pushing the branch, creating the PR, updating Notion to `In Review`, and providing the review links in chat.
+Only halt execution when:
+1. All planned / queued `Not started` tickets in the batch have been completed with Pull Requests opened, OR
+2. A critical unrecoverable blocker occurs.
+
+Once the entire batch is complete, output a consolidated review summary table in chat:
+
+```markdown
+### 🚀 Batch Execution Complete — All PRs Created
+
+| Ticket | Title | Branch | Pull Request | Status |
+|---|---|---|---|---|
+| [TASK-01] | <Task Title> | `feat/task-01-...` | [PR #X](<PR_URL>) | Ready for Review |
+| [TASK-02] | <Task Title> | `feat/task-02-...` | [PR #Y](<PR_URL>) | Ready for Review |
+
+All branches have been pushed and all Notion tickets have been transitioned to `In Review` with PR links. Please review the PRs at your convenience!
+```
+
+---
+
+## Phase 4: Review Iteration & Merging (Post-Review Workflow)
+
+Once the user reviews the PRs:
 
 1. **If Changes Requested by User**:
    - The user may leave comments on the GitHub PR or in chat.
@@ -251,7 +289,7 @@ Execute **one ticket at a time**. Never bundle multiple tickets into a single br
          ]
        }
        ```
-   - Proceed to the next `Not started` item (re-query the pinned database first).
+   - If other stacked PRs depended on this merged branch, re-target or rebase their base to `main` as needed.
 
 ---
 
