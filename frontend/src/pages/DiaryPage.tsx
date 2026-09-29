@@ -6,6 +6,7 @@ import { createDiary, getDiary } from '../api/diary';
 import DiaryCard from '../components/DiaryCard';
 import EmptyMessage from '../components/EmptyMessage';
 import ErrorBanner from '../components/ErrorBanner';
+import { theme } from '../styles/theme';
 
 interface DiaryPageProps {
   colors: Colors;
@@ -63,7 +64,7 @@ export default function DiaryPage({ colors }: DiaryPageProps) {
           value={newDiaryText}
           onChange={(e) => setNewDiaryText(e.target.value)}
           placeholder="How are you feeling today? Any new symptoms or thoughts?"
-          style={{ padding: '16px', height: '120px', borderRadius: '12px', border: `1px solid ${colors.border}`, backgroundColor: '#fafafa', fontSize: '15px', resize: 'vertical', outlineColor: colors.sage }}
+          style={{ padding: '16px', height: '120px', borderRadius: '12px', border: `1px solid ${colors.border}`, backgroundColor: theme.inputBg, fontSize: '15px', resize: 'vertical', outlineColor: colors.sage }}
         />
         <button
           type="submit"
