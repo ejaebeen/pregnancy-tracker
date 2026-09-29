@@ -1,43 +1,59 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Colors } from '../App';
+import type { DiaryEntry } from '../types';
+import { createDiary, getDiary } from '../api/diary';
 import DiaryCard from '../components/DiaryCard';
 import EmptyMessage from '../components/EmptyMessage';
-
-export interface DiaryEntry {
-  id: string;
-  date: string;
-  text: string;
-}
+import ErrorBanner from '../components/ErrorBanner';
 
 interface DiaryPageProps {
   colors: Colors;
 }
 
-export default function DiaryPage({ colors }: DiaryPageProps) {
-  const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>(() => {
-    const saved = localStorage.getItem('pregnancy_diary');
-    return saved ? JSON.parse(saved) : [];
-  });
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong';
+}
 
+export default function DiaryPage({ colors }: DiaryPageProps) {
+  const [entries, setEntries] = useState<DiaryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [newDiaryText, setNewDiaryText] = useState<string>('');
 
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setEntries(await getDiary());
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    localStorage.setItem('pregnancy_diary', JSON.stringify(diaryEntries));
-  }, [diaryEntries]);
+    void load();
+  }, [load]);
 
-  const handleAddDiary = (e: FormEvent) => {
+  const handleAddDiary = async (e: FormEvent) => {
     e.preventDefault();
-    if (!newDiaryText.trim()) return;
+    const text = newDiaryText.trim();
+    if (!text || submitting) return;
 
-    const newEntry: DiaryEntry = {
-      id: crypto.randomUUID(),
-      date: new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-      text: newDiaryText
-    };
-
-    setDiaryEntries([newEntry, ...diaryEntries]);
-    setNewDiaryText('');
+    setSubmitting(true);
+    setError(null);
+    try {
+      const entry = await createDiary(text);
+      setEntries([entry, ...entries]);
+      setNewDiaryText('');
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -49,16 +65,27 @@ export default function DiaryPage({ colors }: DiaryPageProps) {
           placeholder="How are you feeling today? Any new symptoms or thoughts?"
           style={{ padding: '16px', height: '120px', borderRadius: '12px', border: `1px solid ${colors.border}`, backgroundColor: '#fafafa', fontSize: '15px', resize: 'vertical', outlineColor: colors.sage }}
         />
-        <button type="submit" style={{ padding: '14px', backgroundColor: colors.sage, color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '16px', fontWeight: '500' }}>
-          Save to Diary
+        <button
+          type="submit"
+          disabled={submitting}
+          style={{ padding: '14px', backgroundColor: colors.sage, color: 'white', border: 'none', borderRadius: '10px', cursor: submitting ? 'default' : 'pointer', fontSize: '16px', fontWeight: '500', opacity: submitting ? 0.7 : 1 }}
+        >
+          {submitting ? 'Saving…' : 'Save to Diary'}
         </button>
       </form>
 
+      {error && (
+        <div style={{ marginBottom: '20px' }}>
+          <ErrorBanner message={error} onRetry={() => void load()} colors={colors} />
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {diaryEntries.map((entry) => (
+        {loading && <p style={{ textAlign: 'center', color: colors.textLight, fontSize: '14px' }}>Loading…</p>}
+        {!loading && !error && entries.map((entry) => (
           <DiaryCard key={entry.id} entry={entry} colors={colors} />
         ))}
-        {diaryEntries.length === 0 && <EmptyMessage text="No entries yet. Start writing above!" colors={colors} />}
+        {!loading && !error && entries.length === 0 && <EmptyMessage text="No entries yet. Start writing above!" colors={colors} />}
       </div>
     </div>
   );
