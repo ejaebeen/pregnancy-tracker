@@ -55,9 +55,9 @@ jl-pregnancy-tracker/           # repo root
 └── README.md                   # quickstart pointer into docs/
 ```
 
-> The pre-existing `pregnancy-tracker/` directory (the original frontend) and the
-> top-level `src/jl_pregnancy_tracker/` placeholder package are legacy and will be
-> consolidated into `frontend/` and `backend/` respectively (see [roadmap.md](./roadmap.md)).
+> The original `pregnancy-tracker/` frontend and the top-level
+> `src/jl_pregnancy_tracker/` placeholder package have been removed; the
+> monorepo layout above (`frontend/` + `backend/`) is canonical.
 
 ## Request flow (example: "save a diary entry")
 
