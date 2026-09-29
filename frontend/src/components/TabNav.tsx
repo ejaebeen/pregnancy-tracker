@@ -1,4 +1,5 @@
 import type { Colors } from '../App';
+import { theme } from '../styles/theme';
 
 export type Tab = 'diary' | 'questions';
 
@@ -17,7 +18,7 @@ export default function TabNav({ activeTab, onChange, colors }: TabNavProps) {
           flex: 1, padding: '12px', fontSize: '15px', fontWeight: '500',
           backgroundColor: activeTab === 'diary' ? colors.bg : 'transparent',
           color: activeTab === 'diary' ? colors.sageDark : colors.textLight,
-          boxShadow: activeTab === 'diary' ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
+          boxShadow: activeTab === 'diary' ? theme.shadowActive : 'none',
           border: 'none', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s ease'
         }}
       >
@@ -29,7 +30,7 @@ export default function TabNav({ activeTab, onChange, colors }: TabNavProps) {
           flex: 1, padding: '12px', fontSize: '15px', fontWeight: '500',
           backgroundColor: activeTab === 'questions' ? colors.bg : 'transparent',
           color: activeTab === 'questions' ? colors.sageDark : colors.textLight,
-          boxShadow: activeTab === 'questions' ? '0 2px 8px rgba(0,0,0,0.05)' : 'none',
+          boxShadow: activeTab === 'questions' ? theme.shadowActive : 'none',
           border: 'none', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s ease'
         }}
       >
