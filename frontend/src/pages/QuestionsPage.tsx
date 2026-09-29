@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Colors } from '../App';
 import type { DoctorQuestion } from '../types';
-import { createQuestion, getQuestions, toggleQuestion } from '../api/questions';
+import { createQuestion, deleteQuestion, getQuestions, toggleQuestion } from '../api/questions';
 import QuestionRow from '../components/QuestionRow';
 import EmptyMessage from '../components/EmptyMessage';
 import ErrorBanner from '../components/ErrorBanner';
@@ -21,6 +21,7 @@ export default function QuestionsPage({ colors }: QuestionsPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [newQuestionText, setNewQuestionText] = useState<string>('');
 
   const load = useCallback(async () => {
@@ -72,6 +73,21 @@ export default function QuestionsPage({ colors }: QuestionsPageProps) {
     }
   };
 
+  const handleDeleteQuestion = async (question: DoctorQuestion) => {
+    if (deletingId) return;
+
+    setDeletingId(question.id);
+    setError(null);
+    try {
+      await deleteQuestion(question.id);
+      setQuestions(questions.filter((q) => q.id !== question.id));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div style={{ animation: 'fadeIn 0.3s' }}>
       <form onSubmit={handleAddQuestion} style={{ display: 'flex', gap: '10px', marginBottom: '30px' }}>
@@ -104,8 +120,10 @@ export default function QuestionsPage({ colors }: QuestionsPageProps) {
             key={q.id}
             question={q}
             colors={colors}
-            disabled={togglingId !== null}
+            disabled={togglingId !== null || deletingId !== null}
+            deleting={deletingId === q.id}
             onToggle={() => void toggleQuestionStatus(q)}
+            onDelete={() => void handleDeleteQuestion(q)}
           />
         ))}
         {!loading && !error && questions.length === 0 && <EmptyMessage text="No questions logged. You're all set!" colors={colors} />}
