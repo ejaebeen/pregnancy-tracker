@@ -1,5 +1,6 @@
 import type { Colors } from '../App';
 import type { DiaryEntry } from '../types';
+import { theme } from '../styles/theme';
 
 interface DiaryCardProps {
   entry: DiaryEntry;
@@ -10,7 +11,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, { weekday: 'long', year
 
 export default function DiaryCard({ entry, colors }: DiaryCardProps) {
   return (
-    <div style={{ padding: '20px', backgroundColor: colors.bg, border: `1px solid ${colors.border}`, borderRadius: '14px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+    <div style={{ padding: '20px', backgroundColor: colors.bg, border: `1px solid ${colors.border}`, borderRadius: '14px', boxShadow: theme.shadowCard }}>
       <div style={{ fontSize: '13px', color: colors.sageDark, fontWeight: '600', marginBottom: '8px' }}>
         {dateFormatter.format(new Date(entry.created_at))}
       </div>
