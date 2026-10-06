@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { Colors } from '../App';
 import type { DiaryEntry } from '../types';
-import { createDiary, getDiary } from '../api/diary';
+import { createDiary, deleteDiary, getDiary } from '../api/diary';
 import DiaryCard from '../components/DiaryCard';
 import EmptyMessage from '../components/EmptyMessage';
 import ErrorBanner from '../components/ErrorBanner';
@@ -21,6 +21,7 @@ export default function DiaryPage({ colors }: DiaryPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [newDiaryText, setNewDiaryText] = useState<string>('');
 
   const load = useCallback(async () => {
@@ -57,6 +58,21 @@ export default function DiaryPage({ colors }: DiaryPageProps) {
     }
   };
 
+  const handleDeleteDiary = async (entry: DiaryEntry) => {
+    if (deletingId) return;
+
+    setDeletingId(entry.id);
+    setError(null);
+    try {
+      await deleteDiary(entry.id);
+      setEntries(entries.filter((e) => e.id !== entry.id));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div style={{ animation: 'fadeIn 0.3s' }}>
       <form onSubmit={handleAddDiary} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '30px' }}>
@@ -84,7 +100,14 @@ export default function DiaryPage({ colors }: DiaryPageProps) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {loading && <p style={{ textAlign: 'center', color: colors.textLight, fontSize: '14px' }}>Loading…</p>}
         {!loading && !error && entries.map((entry) => (
-          <DiaryCard key={entry.id} entry={entry} colors={colors} />
+          <DiaryCard
+            key={entry.id}
+            entry={entry}
+            colors={colors}
+            deleting={deletingId === entry.id}
+            disabled={deletingId !== null}
+            onDelete={() => void handleDeleteDiary(entry)}
+          />
         ))}
         {!loading && !error && entries.length === 0 && <EmptyMessage text="No entries yet. Start writing above!" colors={colors} />}
       </div>
