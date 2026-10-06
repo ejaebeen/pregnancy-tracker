@@ -38,6 +38,8 @@ jl-pregnancy-tracker/
 │   │   ├── types/          # index.ts (mirrors backend schemas)
 │   │   ├── App.tsx         # Shell with tab navigation
 │   │   └── main.tsx
+│   ├── Dockerfile          # Multi-stage build + Nginx static serving & reverse proxy
+│   ├── nginx.conf          # Nginx reverse proxy configuration
 │   ├── package.json
 │   └── vite.config.ts      # Configured with proxy to :8000
 ├── backend/                # FastAPI + SQLAlchemy service
@@ -60,16 +62,15 @@ jl-pregnancy-tracker/
 │   ├── frontend.md
 │   ├── setup.md
 │   └── roadmap.md
-├── docker-compose.yml      # Postgres 16 service (+ optional backend)
+├── docker-compose.yml      # db, backend, and frontend services
 ├── .env.example            # Documented environment variables
 └── README.md
 ```
 
 ### Current State (See `docs/roadmap.md`)
-- The repository now matches the target monorepo layout: `frontend/` (React + Vite + TypeScript), `backend/` (FastAPI + SQLAlchemy), `db/` (Postgres init), `docs/`.
-- The original `pregnancy-tracker/` directory and the top-level `src/jl_pregnancy_tracker/` placeholder have been removed.
+- The repository matches the target monorepo layout: `frontend/` (React + Vite + TypeScript), `backend/` (FastAPI + SQLAlchemy), `db/` (Postgres init), `docs/`.
+- All services (`db`, `backend`, and `frontend`) are unified under a single `docker-compose.yml` for one-command startup (`docker compose up -d --build`).
 - Frontend pages consume the API layer (`frontend/src/api/`) and no longer use `localStorage` for data; the four async UX states (loading, empty, submitting, error) are implemented.
-- Remaining roadmap items in [`docs/roadmap.md`](./docs/roadmap.md): containerizing the backend service in `docker-compose.yml` (optional) and repo housekeeping (this change).
 
 ---
 
@@ -156,6 +157,10 @@ When connecting the UI to API endpoints, always support the 4 core asynchronous 
 
 ### Starting Services
 ```bash
+# Option A: Full stack via Docker Compose (one-command launch)
+docker compose up -d --build
+
+# Option B: Local development per service (with reload)
 # 1. Database (from repo root)
 docker compose up -d db
 

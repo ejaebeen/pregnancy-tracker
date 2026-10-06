@@ -12,7 +12,38 @@ docker compose version
 python3 --version   # 3.12+   (or: uv --version)
 ```
 
-## 1. Start the database
+## 1. One-command launch: Full stack via Docker Compose
+
+To start the entire application (`db`, `backend`, and `frontend`) together with zero manual multi-service launch:
+
+```bash
+docker compose up -d --build
+```
+
+Verify:
+
+```bash
+docker compose ps                 # "db", "backend", and "frontend" should be healthy/running
+```
+
+Once running:
+- **Frontend SPA**: http://localhost:5173
+- **Backend API**: http://localhost:8000 (and interactive docs at http://localhost:8000/docs)
+- **PostgreSQL**: localhost:5432
+
+Stop all services:
+```bash
+docker compose down               # preserves database data in pgdata volume
+docker compose down -v            # stops and deletes database volume
+```
+
+---
+
+## Alternative: Local development per service
+
+If you want live code reloading for the backend or frontend without rebuilding containers:
+
+### 1. Start only the database
 
 From the repo root:
 
@@ -37,7 +68,7 @@ user: tracker
 password: tracker
 ```
 
-## 2. Run the backend
+### 2. Run the backend locally
 
 ```bash
 cd backend
@@ -71,7 +102,7 @@ curl -s -X POST localhost:8000/diary -H 'Content-Type: application/json' -d '{"t
 curl -s localhost:8000/diary
 ```
 
-## 3. Run the frontend
+### 3. Run the frontend locally
 
 ```bash
 cd frontend
@@ -80,40 +111,8 @@ npm run dev
 ```
 
 Open http://localhost:5173 . With the Vite proxy in place, diary and question
-actions now read/write to the backend + Postgres instead of `localStorage`.
+actions read/write to the backend + Postgres instead of `localStorage`.
 
-## 4. (Optional) Run the backend in Docker too
-
-`docker-compose.yml` can include a `backend` service so the whole stack is
-container-based:
-
-```yaml
-services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: pregnancy_tracker
-      POSTGRES_USER: tracker
-      POSTGRES_PASSWORD: tracker
-    ports: ["5432:5432"]
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-
-  backend:
-    build: ./backend
-    env_file: .env
-    environment:
-      DATABASE_URL: postgresql+psycopg://tracker:tracker@db:5432/pregnancy_tracker
-    ports: ["8000:8000"]
-    depends_on: [db]
-
-volumes:
-  pgdata:
-```
-
-> Note the host `db` vs `localhost` — inside the compose network the database is
-> reachable by service name `db`.
 
 ## Environment variables
 

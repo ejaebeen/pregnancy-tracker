@@ -7,8 +7,8 @@
 - **Clean separation.** Frontend, backend, and database are independent units that
   can run (and, in principle, be deployed) separately.
 - **Boring, proven stack.** React + FastAPI + PostgreSQL. No framework surprises.
-- **Local-first development.** One `docker compose up` starts the database.
-  Nothing else requires a cloud service.
+- **Local-first development.** One `docker compose up` starts the entire application
+  (database, backend, and frontend). Nothing else requires a cloud service.
 
 ## System overview
 
@@ -16,15 +16,16 @@
 ┌────────────┐   HTTP/JSON    ┌────────────┐   SQL    ┌────────────┐
 │  Frontend  │ ─────────────▶ │  Backend   │ ───────▶ │ PostgreSQL │
 │ React + TS │ ◀───────────── │  FastAPI   │ ◀─────── │    16      │
-│ (Vite dev) │                │ (uvicorn)  │          │ (Docker)   │
+│(Nginx/Vite)│                │ (uvicorn)  │          │ (Docker)   │
 │  :5173     │                │   :8000    │          │   :5432    │
 └────────────┘                └────────────┘          └────────────┘
       │                            │
-      └─── vite dev proxy ─────────┘   (dev-only, avoids CORS)
+      └─── reverse proxy / dev ────┘   (avoids CORS)
 ```
 
-- The **frontend** is a browser app. In development it is served by Vite (`:5173`)
-  which proxies API calls to the backend (`:8000`).
+- The **frontend** is a browser app. In containerized deployment, it is served by
+  Nginx (`:5173`) which reverse-proxies API calls to the backend (`:8000`). In local
+  standalone development, it can also be served by Vite (`:5173`) using Vite's dev proxy.
 - The **backend** is a stateless FastAPI service. It owns all business logic and
   performs the only SQL. It holds no long-lived client state.
 - The **database** is the system of record. It holds diary entries and doctor
@@ -46,11 +47,11 @@ independent.
 
 ```
 jl-pregnancy-tracker/           # repo root
-├── frontend/                   # React + Vite + TypeScript app
-├── backend/                    # FastAPI + SQLAlchemy service
+├── frontend/                   # React + Vite + TypeScript app (with Dockerfile & nginx.conf)
+├── backend/                    # FastAPI + SQLAlchemy service (with Dockerfile)
 ├── db/                         # SQL init / optional seed scripts
 ├── docs/                       # THIS documentation
-├── docker-compose.yml          # postgres (and optionally backend) for dev
+├── docker-compose.yml          # db, backend, and frontend services
 ├── .env.example                # documented environment variables
 └── README.md                   # quickstart pointer into docs/
 ```

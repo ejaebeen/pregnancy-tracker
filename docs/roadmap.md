@@ -23,7 +23,7 @@ Implementation order, and what is / isn't in scope yet.
 10. Housekeeping: remove legacy `pregnancy-tracker/` and the top-level
     `src/jl_pregnancy_tracker/` placeholder; update `.gitignore`, `.env.example`,
     and the root `README.md` to point at `docs/`.
-11. (Optional) Add a `backend` service to `docker-compose.yml`.
+11. Containerize backend and frontend services into a unified `docker-compose.yml`.
 
 ## Not in scope yet (deliberate)
 
@@ -37,15 +37,16 @@ Each has a clear trigger for when to revisit:
 | **React Query / SWR** | When list cache / revalidation / optimistic updates become worth it. |
 | **Tests** | Unit tests for `crud.py` and API tests via FastAPI `TestClient`; component tests for the pages. High value, do soon. |
 | **CI** | A GitHub Actions job: backend `pytest` + frontend `npm run lint && npm run build`. |
-| **Deployment** | Serve `frontend/dist` from a static host + reverse proxy to `backend` → `db`. |
+| **Deployment / hosting** | Production hosting / cloud infrastructure beyond local Docker Compose. |
 | **Soft delete / archive** | If "delete" is too destructive and history matters. |
 
 ## Current status
 
 - [x] Initial React frontend (single `App.tsx`, `localStorage`) — present in this repo
-- [x] Documentation (`docs/`) — this work
-- [ ] Monorepo reorganization (`frontend/`, `backend/`)
-- [ ] FastAPI + SQLAlchemy backend
-- [ ] PostgreSQL via Docker Compose
-- [ ] Frontend wired to the API
-- [ ] State handling (loading/error/empty)
+- [x] Documentation (`docs/`)
+- [x] Monorepo reorganization (`frontend/`, `backend/`)
+- [x] FastAPI + SQLAlchemy backend
+- [x] PostgreSQL via Docker Compose
+- [x] Frontend wired to the API
+- [x] State handling (loading/error/empty)
+- [x] Unified Docker Compose stack (`db`, `backend`, `frontend`)
