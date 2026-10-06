@@ -65,14 +65,11 @@ jl-pregnancy-tracker/
 └── README.md
 ```
 
-### Current Migration Status (See `docs/roadmap.md`)
-- The initial React app currently resides in `pregnancy-tracker/` (uses `localStorage`).
-- Migration roadmap:
-  - Phase 1: Scaffold `docker-compose.yml`, `db/init.sql`, and `backend/`. Rename/move `pregnancy-tracker/` to `frontend/` and configure Vite proxy.
-  - Phase 2: Create `frontend/src/api/`, split `App.tsx` into `DiaryPage` and `QuestionsPage`, replace `localStorage` with API calls, and handle loading/error/empty/submitting states.
-  - Phase 3: Extract `theme.ts`, remove legacy `src/jl_pregnancy_tracker/` placeholder.
-
-When working on tasks, verify which directory structure is active and follow the phased roadmap in [`docs/roadmap.md`](./docs/roadmap.md).
+### Current State (See `docs/roadmap.md`)
+- The repository now matches the target monorepo layout: `frontend/` (React + Vite + TypeScript), `backend/` (FastAPI + SQLAlchemy), `db/` (Postgres init), `docs/`.
+- The original `pregnancy-tracker/` directory and the top-level `src/jl_pregnancy_tracker/` placeholder have been removed.
+- Frontend pages consume the API layer (`frontend/src/api/`) and no longer use `localStorage` for data; the four async UX states (loading, empty, submitting, error) are implemented.
+- Remaining roadmap items in [`docs/roadmap.md`](./docs/roadmap.md): containerizing the backend service in `docker-compose.yml` (optional) and repo housekeeping (this change).
 
 ---
 
@@ -165,7 +162,7 @@ docker compose up -d db
 # 2. Backend (from backend/)
 uvicorn src.main:app --reload --port 8000
 
-# 3. Frontend (from frontend/ or pregnancy-tracker/)
+# 3. Frontend (from frontend/)
 npm install
 npm run dev
 ```
